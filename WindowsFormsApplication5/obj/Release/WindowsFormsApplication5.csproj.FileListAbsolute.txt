@@ -1,0 +1,8 @@
+C:\Users\sheng\Desktop\interview\Ray tracer\WindowsFormsApplication5\WindowsFormsApplication5\bin\Release\WindowsFormsApplication5.exe.config
+C:\Users\sheng\Desktop\interview\Ray tracer\WindowsFormsApplication5\WindowsFormsApplication5\bin\Release\WindowsFormsApplication5.exe
+C:\Users\sheng\Desktop\interview\Ray tracer\WindowsFormsApplication5\WindowsFormsApplication5\bin\Release\WindowsFormsApplication5.pdb
+C:\Users\sheng\Desktop\interview\Ray tracer\WindowsFormsApplication5\WindowsFormsApplication5\obj\Release\WindowsFormsApplication5.Form1.resources
+C:\Users\sheng\Desktop\interview\Ray tracer\WindowsFormsApplication5\WindowsFormsApplication5\obj\Release\WindowsFormsApplication5.Properties.Resources.resources
+C:\Users\sheng\Desktop\interview\Ray tracer\WindowsFormsApplication5\WindowsFormsApplication5\obj\Release\WindowsFormsApplication5.csproj.GenerateResource.Cache
+C:\Users\sheng\Desktop\interview\Ray tracer\WindowsFormsApplication5\WindowsFormsApplication5\obj\Release\WindowsFormsApplication5.exe
+C:\Users\sheng\Desktop\interview\Ray tracer\WindowsFormsApplication5\WindowsFormsApplication5\obj\Release\WindowsFormsApplication5.pdb

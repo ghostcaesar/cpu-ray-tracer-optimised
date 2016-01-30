@@ -1,0 +1,371 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace WindowsFormsApplication5
+{
+
+    public partial class Form1 : Form
+    {
+        void paint()
+        {
+            output.Image = Picture.bmpPic;
+
+        }
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            Picture pic1 = new Picture();
+            pic1.render();
+            paint();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            button1_Click(sender, e);
+        }
+
+    }
+
+    public class Sphere
+    {
+
+
+        public float[] pos = { 0, 0, 0 };
+
+        public float radius = 0;
+
+        //reflection, refraction
+        public float[] attributes = {1,0};
+
+        public Sphere(float x, float y, float z, float r)
+        {
+            pos[0] = x;
+            pos[1] = y;
+            pos[2] = z;
+            radius = r;
+        }
+
+    }
+
+    class PointLight
+    {
+        public float[] pos = { 60, 110, 0 };
+
+        public float intensity = 80;
+    }
+
+    class Scene
+    {
+        public int reflectDepth = 4;
+        public PointLight light = new PointLight();
+
+        public List<Sphere> spheres = new List<Sphere>
+        {
+            new Sphere(0, 160, -90, 30),
+            new Sphere(0, 160, 90, 30),
+        };
+
+    }
+
+    class Picture
+    {
+        Scene scene = new Scene();
+
+        public static Bitmap bmpPic = new Bitmap(241,241);
+
+        private float[,,] pixel = new float[241,241,3];
+
+        float[] cameraPos = { 0, 0, 0 };
+
+        //position of screen centre
+        float[] screenPos = { 0, 1, 0 };
+        //position of unit vector for screen direction
+        float[] screenDir = { 0, 1, 0 };
+
+
+        private double[] sphereIntersect(int x_count, int y_count, Sphere s_in)
+        {
+            float[] ray_dir = new float[3];
+            ray_dir[0] = x_count; //temp
+            ray_dir[1] = 100; //temp
+            ray_dir[2] = y_count; //temp
+
+            //3 surface point, 1 t_length, 3 ray direction
+            double[] ret = { 0, 0, 0, 0, ray_dir[0], ray_dir[1], ray_dir[2] };
+
+            double a = ray_dir[0] * ray_dir[0] + ray_dir[1] * ray_dir[1] + ray_dir[2] * ray_dir[2];
+            double b = -2 * (ray_dir[0] * s_in.pos[0] + ray_dir[1] * s_in.pos[1] + ray_dir[2] * s_in.pos[2]);
+            double c = s_in.pos[0] * s_in.pos[0] + s_in.pos[1] * s_in.pos[1] + s_in.pos[2] * s_in.pos[2] - s_in.radius * s_in.radius;
+
+            double t1 = (-b - Math.Sqrt(b * b - 4 * a * c)) / (2 * a);
+            double t2 = (-b + Math.Sqrt(b * b - 4 * a * c)) / (2 * a);
+
+            if (t1 < t2)
+            {
+                if (t1 > 0)
+                {
+                    ret[0] = t1 * ray_dir[0];
+                    ret[1] = t1 * ray_dir[1];
+                    ret[2] = t1 * ray_dir[2];
+                    ret[3] = t1;
+                }
+                else if(t2>0)
+                {
+                    ret[0] = t2 * ray_dir[0];
+                    ret[1] = t2 * ray_dir[1];
+                    ret[2] = t2 * ray_dir[2];
+                    ret[3] = t2;
+                }
+            }
+            else if (t2 < t1)
+            {
+                if (t2 > 0)
+                {
+                    ret[0] = t2 * ray_dir[0];
+                    ret[1] = t2 * ray_dir[1];
+                    ret[2] = t2 * ray_dir[2];
+                    ret[3] = t2;
+                }
+                else if (t1 > 0)
+                {
+                    ret[0] = t1 * ray_dir[0];
+                    ret[1] = t1 * ray_dir[1];
+                    ret[2] = t1 * ray_dir[2];
+                    ret[3] = t1;
+                }
+            }
+
+
+            return ret;
+        }
+
+        private double[] FindReflectedRay(double[] sur_in, Sphere sph_in)
+        {
+            double[] ret = new double[3];
+
+            double[] normal = new double[3];
+
+            normal[0] = sur_in[0] - sph_in.pos[0];
+            normal[1] = sur_in[1] - sph_in.pos[1];
+            normal[2] = sur_in[2] - sph_in.pos[2];
+
+            double normal_unit_multiplier = 1/Math.Sqrt(normal[0]*normal[0]+normal[1]*normal[1]+normal[2]*normal[2]);
+
+            //unit normal
+            normal[0] = normal_unit_multiplier * normal[0];
+            normal[1] = normal_unit_multiplier * normal[1];
+            normal[2] = normal_unit_multiplier * normal[2];
+
+
+            double n_dot_d = normal[0] * sur_in[4] + normal[1] * sur_in[5] + normal[2] * sur_in[6];
+            ret[0] = sur_in[4] - 2 * n_dot_d * normal[0];
+            ret[1] = sur_in[5] - 2 * n_dot_d * normal[1];
+            ret[2] = sur_in[6] - 2 * n_dot_d * normal[2];
+
+            return ret;
+        }
+
+        private double[] reflectionRecursive(double[] t_in,Sphere s_in)
+        {
+            double[] ray_dir = FindReflectedRay(t_in, s_in);
+
+            double[] ret = { 0, 0, 0, 0, ray_dir[0], ray_dir[1], ray_dir[2] };
+
+            double a = ray_dir[0] * ray_dir[0] + ray_dir[1] * ray_dir[1] + ray_dir[2] * ray_dir[2];
+            double b = -2 * (ray_dir[0] * s_in.pos[0] + ray_dir[1] * s_in.pos[1] + ray_dir[2] * s_in.pos[2]);
+            double c = s_in.pos[0] * s_in.pos[0] + s_in.pos[1] * s_in.pos[1] + s_in.pos[2] * s_in.pos[2] - s_in.radius * s_in.radius;
+
+            double t1 = (-b - Math.Sqrt(b * b - 4 * a * c)) / (2 * a);
+            double t2 = (-b + Math.Sqrt(b * b - 4 * a * c)) / (2 * a);
+
+            if (t1 < t2)
+            {
+                if (t1 > 0)
+                {
+                    ret[0] = t1 * ray_dir[0];
+                    ret[1] = t1 * ray_dir[1];
+                    ret[2] = t1 * ray_dir[2];
+                    ret[3] = t1;
+                }
+                else if (t2 > 0)
+                {
+                    ret[0] = t2 * ray_dir[0];
+                    ret[1] = t2 * ray_dir[1];
+                    ret[2] = t2 * ray_dir[2];
+                    ret[3] = t2;
+                }
+            }
+            else if (t2 < t1)
+            {
+                if (t2 > 0)
+                {
+                    ret[0] = t2 * ray_dir[0];
+                    ret[1] = t2 * ray_dir[1];
+                    ret[2] = t2 * ray_dir[2];
+                    ret[3] = t2;
+                }
+                else if (t1 > 0)
+                {
+                    ret[0] = t1 * ray_dir[0];
+                    ret[1] = t1 * ray_dir[1];
+                    ret[2] = t1 * ray_dir[2];
+                    ret[3] = t1;
+                }
+            }
+
+
+            return ret;
+        }
+
+
+        //direct ray from intersect to light source
+        //gives intensity if clear
+        //else give 0,0,0
+        private bool ShadowRay(double[] t_in, Sphere s_in)
+        {
+            double[] ray_dir = new double[3];
+            ray_dir[0] = -t_in[0] + scene.light.pos[0]; //temp
+            ray_dir[1] = -t_in[1] + scene.light.pos[1]; //temp
+            ray_dir[2] = -t_in[2] + scene.light.pos[2]; //temp
+
+            float[] ret = {0,0,0};
+
+            double a = ray_dir[0] * ray_dir[0] + ray_dir[1] * ray_dir[1] + ray_dir[2] * ray_dir[2];
+            double b = -2 * (ray_dir[0] * (s_in.pos[0] - t_in[0]) + ray_dir[1] * (s_in.pos[1] - t_in[1]) + ray_dir[2] * (s_in.pos[2] - t_in[2]));//check sign
+            double c = (s_in.pos[0] - t_in[0]) * (s_in.pos[0] - t_in[0]) + (s_in.pos[1] - t_in[1]) * (s_in.pos[1] - t_in[1]) + (s_in.pos[2] - t_in[2]) * (s_in.pos[2] - t_in[2]) - s_in.radius * s_in.radius;
+
+            double t1 = (-b - Math.Sqrt(b * b - 4 * a * c)) / (2 * a);
+            double t2 = (-b + Math.Sqrt(b * b - 4 * a * c)) / (2 * a);
+
+            if (!((t1 > 0.0001 && t1<1.01) || (t2 > 0.0001 && t2<1.01)))// take into account NaN
+            {
+                return true;
+                    //ret[0] = scene.light.intensity * s_in.attributes[0];
+                    //ret[1] = scene.light.intensity * s_in.attributes[0];
+                    //ret[2] = scene.light.intensity * s_in.attributes[0];
+            }
+
+            return false;
+        }
+
+        public void render()
+        {
+            //screen rotation()
+            //screen translation()
+
+            //camera translation()
+
+
+            for(int x_dir =-120; x_dir<=120;x_dir++)
+            {
+                for (int y_dir = -120; y_dir <= 120; y_dir++)
+                {
+
+                    int reflectDepth =0;
+                    float[] pixelColour = { 0, 0, 0 };
+
+                    double[] t_in= {0,0,0,0,0,0,0};
+
+                    foreach (Sphere sph in scene.spheres)
+                    {
+                        double[] t_in_tmp = sphereIntersect(x_dir, y_dir, sph);
+                        if(t_in_tmp[3] !=0 &&((t_in_tmp[3]<t_in[3])||(t_in[3] ==0)))
+                            t_in = t_in_tmp;
+                    }
+
+                    if (t_in[3] != 0)
+                    {
+                        bool temp_pixel_val = true;
+                        foreach (Sphere sph in scene.spheres)
+                        {
+                            temp_pixel_val = temp_pixel_val & ShadowRay(t_in, sph);
+
+                        }
+                        if (temp_pixel_val)
+                        {
+                            pixelColour[0] += scene.light.intensity;
+                            pixelColour[1] += scene.light.intensity;
+                            pixelColour[2] += scene.light.intensity;
+                            temp_pixel_val = true;
+                        }
+
+
+                        while (reflectDepth < 4)
+                        {
+
+                            foreach (Sphere sph in scene.spheres)
+                            {
+                                double[] t_in_tmp = reflectionRecursive(t_in, sph);
+                                if (t_in_tmp[3] != 0 && (t_in_tmp[3] < t_in[3]) || (t_in[3] == 0))
+                                    t_in = t_in_tmp;
+
+                            }
+
+                            if (t_in[3] != 0)
+                            {
+                                foreach (Sphere sph in scene.spheres)
+                                {
+                                    temp_pixel_val = temp_pixel_val & ShadowRay(t_in, sph);
+
+                                }
+                                if (temp_pixel_val)
+                                {
+                                    pixelColour[0] += scene.light.intensity * Convert.ToSingle(Math.Pow(0.6, reflectDepth + 1));
+                                    pixelColour[1] += scene.light.intensity * Convert.ToSingle(Math.Pow(0.6, reflectDepth + 1));
+                                    pixelColour[2] += scene.light.intensity * Convert.ToSingle(Math.Pow(0.6, reflectDepth + 1));
+                                    temp_pixel_val = true;
+                                }
+
+                                reflectDepth++;
+                            }
+                            else
+                                reflectDepth = 5;
+                        }
+
+                    }
+
+                    //inversion from crossing plane
+                    pixel[x_dir + 120, -y_dir + 120, 0] = pixelColour[0];
+                    pixel[x_dir + 120, -y_dir + 120, 1] = pixelColour[1];
+                    pixel[x_dir + 120, -y_dir + 120, 2] = pixelColour[2];
+
+                }
+            }
+
+
+            for (int i = 0; i < 241; i++)
+            {
+                for (int j = 0; j < 241; j++)
+                {
+                    Color a = new Color();
+
+                    int[] pixel2 = new int[3];
+
+                    pixel2[0] = Convert.ToInt32(pixel[i, j, 0]);
+                    pixel2[1] = Convert.ToInt32(pixel[i, j, 1]);
+                    pixel2[2] = Convert.ToInt32(pixel[i, j, 2]);
+
+                    a = Color.FromArgb(pixel2[0],pixel2[1],pixel2[2]);
+
+                    bmpPic.SetPixel(i, j, a);
+
+                }
+            }
+            bmpPic.Save(".myBitmap.bmp");
+
+        }
+    }
+
+}
